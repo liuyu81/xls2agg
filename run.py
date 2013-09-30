@@ -48,24 +48,30 @@ def save(data, fn):
     try:
         sys.stderr.write("""creating "%s" ... """ % fn)
         book = xlwt.Workbook(encoding='utf-8', style_compression=True)
-        sh = book.add_sheet('余额汇总')
-        sh.write(0, 0, '卡号')
-        sh.write(0, 1, '余额')
-        sh.col(0).width = 6500
-        sh.col(1).width = 2000
-        style0 = xlwt.easyxf(num_format_str='@')
-        style1 = xlwt.easyxf(num_format_str='0.00')
         sys.stderr.write("done\n")
         #
         sys.stderr.write("""writing %d records ... """ % len(data))
-        r = 0
-        for card in data:
-            r += 1
-            sh.write(r, 0, card, style0)
-            sh.write(r, 1, 100.00 - sum(data[card]), style1)
-        assert(r == len(data))
+        style0 = xlwt.easyxf(num_format_str='@')
+        style1 = xlwt.easyxf(num_format_str='0.00')
+        limit = 65535
+        sh = None
+        cnt = 0
+        for card in sorted(data):
+            page = cnt / limit
+            row = cnt % limit
+            if row == 0:
+                sh = book.add_sheet('Sheet%d' % (page + 1))
+                sh.write(0, 0, '卡号')
+                sh.write(0, 1, '余额')
+                sh.col(0).width = 6500
+                sh.col(1).width = 2000
+                sys.stderr.write("[%d]" % (page + 1))
+            sh.write(row + 1, 0, card, style0)
+            sh.write(row + 1, 1, 100.00 - sum(data[card]), style1)
+            cnt += 1
+        assert(cnt == len(data))
         book.save(fn)
-        sys.stderr.write("done\n")
+        sys.stderr.write("\n")
         pass
     except:
         sys.stderr.write("failed\n")
