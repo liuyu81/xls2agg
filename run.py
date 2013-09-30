@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#
+# Copyright (C) 2013, LIU Yu <liuyu@opencps.net>
+# All rights reserved.
+#
 
 import os
 import sys
@@ -8,20 +12,22 @@ import xlwt
 
 
 def load(fn):
+    """
+    load xls/xlsx file containing payment records
+    """
     data = {}
-    # load xls file
     try:
-        sys.stderr.write("loading \"%s\" ... " % fn)
+        sys.stderr.write("""loading "%s" ... """ % fn)
         book = xlrd.open_workbook(fn)
         sh = book.sheet_by_index(0)
         assert(sh.nrows > 1 and sh.ncols > 1)
         sys.stderr.write("done\n")
         #
-        sys.stderr.write("reading %d records ... " % (sh.nrows -  1))
+        sys.stderr.write("""reading %d records ... """ % (sh.nrows - 1))
         cnt = 0
-        for r in range(1, sh.nrows): # skip header line
+        for r in range(1, sh.nrows):  # skip header line
             tup = sh.row(r)
-            card, value = long(tup[0].value), float(tup[1].value)
+            card, value = str(tup[0].value).strip(), float(tup[1].value)
             if not card in data:
                 data[card] = []
             data[card].append(value)
@@ -36,25 +42,27 @@ def load(fn):
 
 
 def save(data, fn):
-    # write xls file
+    """
+    write per-card balance to xls file
+    """
     try:
-        sys.stderr.write("creating \"%s\" ... " % fn)
+        sys.stderr.write("""creating "%s" ... """ % fn)
         book = xlwt.Workbook(encoding='utf-8', style_compression=True)
-        sh = book.add_sheet(u"""余额汇总""")
-        sh.write(0, 0, u"""卡号""")
-        sh.write(0, 1, u"""余额""")
+        sh = book.add_sheet('余额汇总')
+        sh.write(0, 0, '卡号')
+        sh.write(0, 1, '余额')
         sh.col(0).width = 6500
         sh.col(1).width = 2000
         style0 = xlwt.easyxf(num_format_str='@')
         style1 = xlwt.easyxf(num_format_str='0.00')
         sys.stderr.write("done\n")
         #
-        sys.stderr.write("writing %d records ... " % len(data))
+        sys.stderr.write("""writing %d records ... """ % len(data))
         r = 0
-        for card, value in data.iteritems():
+        for card in data:
             r += 1
-            sh.write(r, 0, str(card), style0)
-            sh.write(r, 1, 100.00 - sum(value), style1)
+            sh.write(r, 0, card, style0)
+            sh.write(r, 1, 100.00 - sum(data[card]), style1)
         assert(r == len(data))
         book.save(fn)
         sys.stderr.write("done\n")
@@ -66,13 +74,15 @@ def save(data, fn):
 
 
 def main(args):
-    if len(args) > 0:
-        for fi in args:
-            fo = '.'.join(fi.split('.')[:-1] + ['agg', 'xls', ])
-            save(load(fi), fo)
-    else:
-        sys.stderr.write("usage: python %s <0.xls|xlsx> [<1.xls|xlsx> [...]\n" % __file__)
-    return 0
+    if len(args) <= 0:
+        sys.stderr.write("usage: python %s <0.xls|xlsx> "
+                         "[<1.xls|xlsx> [...]]\n" % __file__)
+        return os.EX_USAGE
+    for fi in args:
+        fo = '.'.join(fi.split('.')[:-1] + ['agg', 'xls', ])
+        save(load(fi), fo)
+        pass
+    return os.EX_OK
 
 if __name__ == '__main__':
-	sys.exit(main(sys.argv[1:]))
+    sys.exit(main(sys.argv[1:]))
